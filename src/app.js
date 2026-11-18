@@ -122,7 +122,7 @@ function createApp(holder, { fetcher = gmail.fetchRecent } = {}) {
   const home = (u) => (u.role === 'super_admin' ? '/admin' : '/app');
   app.get('/', (req, res) => { if (ready(res)) send(res, 'landing'); });
   app.get(['/login', '/register'], (req, res) => { if (!ready(res)) return; if (req.user) return res.redirect(home(req.user)); send(res, req.path === '/login' ? 'login' : 'register'); });
-  app.get('/services/:platform', (req, res) => { if (!ready(res)) return; if (!['instagram', 'telegram', 'facebook', 'whatsapp'].includes(req.params.platform)) return res.redirect('/'); send(res, 'services'); });
+  app.get('/services/:platform', (req, res) => { if (!ready(res)) return; if (!['instagram', 'youtube', 'telegram', 'facebook', 'whatsapp'].includes(req.params.platform)) return res.redirect('/'); send(res, 'services'); });
   app.get('/app', (req, res) => { if (!ready(res)) return; if (!req.user) return res.redirect('/login'); if (req.user.role === 'super_admin') return res.redirect('/admin'); send(res, 'app'); });
   app.get('/admin', (req, res) => { if (!ready(res)) return; if (!req.user || req.user.role !== 'super_admin') return res.redirect('/login'); send(res, 'admin'); });
   app.get('/setup', (req, res) => { if (auth.adminExists(db())) return res.redirect('/login'); send(res, 'setup'); });
@@ -130,7 +130,7 @@ function createApp(holder, { fetcher = gmail.fetchRecent } = {}) {
   app.get('/favicon.svg', (req, res) => res.type('image/svg+xml').set('Cache-Control', 'public, max-age=300').send(views.faviconSvg(brand().name)));
 
   // ---- public read-only APIs (retail prices only: no wholesale rates, no parent IDs) ----
-  const PLATFORMS = ['instagram', 'telegram', 'facebook', 'whatsapp'];
+  const PLATFORMS = ['instagram', 'youtube', 'telegram', 'facebook', 'whatsapp'];
   app.get('/api/public/config', (req, res) => {
     const sup = support.getSupport(db()); const counts = {};
     for (const x of catalogSvc.publicServices(db())) counts[x.platform] = (counts[x.platform] || 0) + 1;

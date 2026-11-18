@@ -6,7 +6,7 @@
     <span class="svc-cat">${esc(s.category || 'General')}</span>
     <span class="svc-name">${esc(s.name)}</span>
     <span class="svc-meta"><span class="svc-rate"><b>${inr(s.rate)}</b><span>per 1000</span></span><span class="svc-lim">Min ${num(s.min)}<br>Max ${num(s.max)}</span></span>
-    <span class="svc-go"><span>Order now</span>${(MK.ICONS && MK.ICONS.arrow) || ''}</span></button>`;
+    <span class="svc-go"><span>Order now</span>${((MK.ICONS && MK.ICONS.arrow) || '').replace('<svg', '<svg class="ic"')}</span></button>`;
 
   // opts: { user, nextUrl, onOrdered }
   MK.openServiceModal = (s, opts) => {

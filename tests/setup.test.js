@@ -111,3 +111,16 @@ test('pages: no inline scripts, inline styles or inline handlers (strict CSP), n
     assert.ok(!views.render(f.replace('.html', ''), { name: 'N' }).includes('{{'), `${f} has an unreplaced placeholder`);
   }
 });
+
+test('landing shows the five platform tiles in order, and each links to a platform page the server allows', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'views', 'landing.html'), 'utf8');
+  const tiles = [...html.matchAll(/class="ptile \w+" href="\/services\/(\w+)"/g)].map((m) => m[1]);
+  assert.deepEqual(tiles, ['instagram', 'youtube', 'telegram', 'facebook', 'whatsapp']);
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src/app.js'), 'utf8');
+  for (const t of tiles) assert.ok(app.includes(`'${t}'`), `server does not allow ${t}`);
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public/js/platforms.js'), 'utf8');
+  for (const t of tiles) assert.ok(new RegExp(`${t}: \\{ name:`).test(js) && js.includes(`"${t}": "<svg`), `platforms.js is missing ${t}`);
+});
+test('service card arrow icon carries the size class so it cannot render oversized', () => {
+  assert.ok(/replace\('<svg', '<svg class=\\"ic\\"'\)|replace\('<svg', '<svg class="ic"'\)/.test(fs.readFileSync(path.join(__dirname, '..', 'public/js/service-modal.js'), 'utf8')));
+});
