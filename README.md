@@ -120,6 +120,45 @@ Your payment gateway configuration is complete!
 
 ---
 
+## ⏱️ 24×7 Uptime Monitoring (Optional)
+
+Want to keep your Child Panel active and monitor its availability?
+
+You can use UptimeRobot to periodically monitor your Child Panel.
+
+### Step 1: Create an UptimeRobot Account
+
+Visit UptimeRobot and create a free account.
+
+[![UptimeRobot](https://img.shields.io/badge/UptimeRobot-Create%20Free%20Account-00B388?logo=uptimerobot&logoColor=white)](https://uptimerobot.com/)
+
+### Step 2: Create a New Monitor
+
+1. Open your UptimeRobot dashboard.
+2. Click **Add New Monitor**.
+3. Select **HTTP(s)** as the monitor type.
+4. Enter a monitor name, such as `MrKrishna Child Panel`.
+5. Copy your deployed Child Panel URL.
+6. Add `/health` at the end of your URL.
+
+Example:
+
+```text
+https://your-child-panel.onrender.com/health
+```
+
+### Step 3: Create Monitor
+
+1. Verify your monitor URL.
+2. Configure your monitoring interval.
+3. Click **Create Monitor**.
+
+That's it! UptimeRobot will periodically check your Child Panel and notify you if it becomes unavailable.
+
+**Note:** Regular monitoring may help reduce free-tier sleeping on supported hosting configurations, but it does not guarantee 100% uptime or prevent every downtime.
+
+---
+
 ## 🎉 You're Ready!
 
 Congratulations! Your MrKrishna Child Panel is now set up.
