@@ -1,0 +1,19 @@
+{
+  "name": "mrkrishna-child-panel",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Independent reseller child panel for the MrKrishna SMM parent panel",
+  "main": "src/server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.19.0",
+    "imapflow": "^1.0.0",
+    "mailparser": "^3.7.0",
+    "qrcode": "^1.5.3"
+  }
+}

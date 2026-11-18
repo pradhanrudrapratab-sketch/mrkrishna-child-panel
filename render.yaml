@@ -1,0 +1,9 @@
+# Optional Blueprint. No environment variables are needed: everything is configured in the admin panel.
+services:
+  - type: web
+    name: mrkrishna-child-panel
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
