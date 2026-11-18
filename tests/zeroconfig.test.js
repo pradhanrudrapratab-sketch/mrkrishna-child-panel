@@ -6,7 +6,6 @@ const cr = require('../src/utils/crypto');
 const { openDb } = require('../src/database');
 const settings = require('../src/services/settings');
 const { scrubSecrets } = require('../src/services/secrets');
-const setup = require('../src/services/setup');
 const auth = require('../src/services/auth');
 const { resolveAppUrl, validateAppUrl } = require('../src/utils/url');
 const pc = require('../src/integrations/parentClient');
@@ -26,13 +25,6 @@ test('secrets that cannot be decrypted after a key change are cleared, not left 
   cr.initKey(tmp()); // simulates a wiped instance with a brand-new key
   const cleared = scrubSecrets(db); assert.ok(cleared.includes('Gmail app password') && cleared.includes('Discord bot token') && cleared.includes('Parent connection'));
   assert.equal(settings.get(db, 'gmail_app_password_enc'), null); const c = pc.getConn(db); assert.equal(c.api_verified, 0); assert.equal(c.state, 'disconnected'); assert.equal(c.access_token_enc, null);
-});
-test('setup code: exists only while no admin exists, wrong codes rejected', () => {
-  const db = openDb(':memory:'); const log = console.log; let line = ''; console.log = (m) => { line += m; };
-  const code = setup.current(db); console.log = log; assert.match(code, /^[0-9a-f]{12}$/); assert.match(line, /SETUP CODE/);
-  assert.equal(setup.check(db, 'wrong'), false); assert.equal(setup.check(db, ''), false); assert.equal(setup.check(db, code), true);
-  auth.claimFirstAdmin(db, { username: 'owner', email: 'o@x.com', password: 'password1', confirm: 'password1' });
-  assert.equal(setup.current(db), null); assert.equal(setup.check(db, code), false);
 });
 test('public URL: saved value wins, otherwise derived from the request host', () => {
   assert.equal(resolveAppUrl(null, 'my-panel.onrender.com', true), 'https://my-panel.onrender.com');

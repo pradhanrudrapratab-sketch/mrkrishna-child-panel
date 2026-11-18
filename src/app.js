@@ -18,7 +18,9 @@ const oauth = require('./integrations/oauth');
 const parentCfg = require('./config/parent');
 const { toPaise, fromPaise } = require('./utils/money');
 const { safeEqual } = require('./utils/crypto');
-const setupCode = require('./services/setup');
+const setupFlow = require('./services/setupFlow');
+const views = require('./views');
+const catalogSvc = require('./services/catalog');
 const { resolveAppUrl, validateAppUrl } = require('./utils/url');
 const { fmt } = require('./utils/time');
 
@@ -72,60 +74,73 @@ function createApp(holder, { fetcher = gmail.fetchRecent } = {}) {
   app.get('/api/session', (req, res) => {
     let s = req.sess;
     if (!s) { const c = auth.createSession(db(), null); setCookie(req, res, c.sid); s = { data: { csrf: c.csrf } }; }
-    res.json({ csrf: s.data.csrf, user: req.user, settings: publicSettings(), setupNeeded: !auth.adminExists(db()), setupEnabled: !auth.adminExists(db()),
+    res.json({ csrf: s.data.csrf, user: req.user, settings: publicSettings(), setupNeeded: !auth.adminExists(db()),
       pendingAdmin: !!(s.data && s.data.pendingAdmin), support: (({ url, display_name, enabled }) => ({ enabled: !!(enabled && url), name: display_name }))(support.getSupport(db())) });
   });
 
   // ---- auth ----
   const loginLimit = rateLimiter(10, 15 * 60000);
   const startSession = (req, res, userId) => { if (req.sid) auth.destroySession(db(), req.sid); const c = auth.createSession(db(), userId); setCookie(req, res, c.sid); return c; };
-  app.post('/api/auth/register', loginLimit, wrap((req, res) => { auth.register(db(), req.body || {}); res.json({ ok: true }); }));
+  app.post('/api/auth/register', loginLimit, wrap((req, res) => {
+    if (!auth.adminExists(db())) throw bad('This panel is not set up yet', 409);
+    const id = auth.register(db(), req.body || {}); const u = db().prepare('SELECT id,username,role FROM users WHERE id=?').get(id); const c = startSession(req, res, id);
+    res.json({ ok: true, csrf: c.csrf, user: u, redirect: '/app' });
+  }));
   app.post('/api/auth/login', loginLimit, wrap((req, res) => {
     const u = auth.login(db(), req.body || {}); const c = startSession(req, res, u.id);
-    res.json({ ok: true, csrf: c.csrf, user: { id: u.id, username: u.username, role: u.role } });
+    res.json({ ok: true, csrf: c.csrf, user: { id: u.id, username: u.username, role: u.role }, redirect: u.role === 'super_admin' ? '/admin' : '/app' });
   }));
   app.post('/api/auth/logout', (req, res) => { if (req.sid) auth.destroySession(db(), req.sid); res.clearCookie('sid'); res.json({ ok: true }); });
   app.post('/api/me/password', needUser, wrap((req, res) => { auth.changePassword(db(), req.user.id, req.body || {}); res.json({ ok: true, relogin: true }); }));
 
-  // ---- first admin setup (gated by the one-time setup code from the server log) ----
+  // ---- first-time owner setup: parent OAuth only (no setup code, no manual claim) ----
   app.post('/api/setup/start', loginLimit, wrap(async (req, res) => {
     if (auth.adminExists(db())) throw bad('Setup is already complete', 409);
-    if (!setupCode.check(db(), (req.body || {}).setupToken)) throw bad('Wrong setup code. Find it in your Render logs.', 403);
     if (!req.sess) throw bad('No session', 403);
     if (!settings.get(db(), 'app_url')) settings.set(db(), 'app_url', appUrl(req)); // remember the public address for OAuth
-    const redirect = `${appUrl(req)}/oauth/callback`;
-    await oauth.ensureClient(db(), { name: settings.get(db(), 'panel_name'), url: appUrl(req), redirectUri: redirect });
-    req.sess.data.setupOk = true;
-    const url = oauth.startAuthorization(db(), req.sess.data, redirect); auth.saveSession(db(), req.sess);
-    res.json({ url });
+    const url = await setupFlow.begin(db(), req.sess.data, { name: settings.get(db(), 'panel_name'), url: appUrl(req), redirectUri: `${appUrl(req)}/oauth/callback` });
+    auth.saveSession(db(), req.sess); res.json({ url });
   }));
   app.post('/api/setup/admin', loginLimit, wrap((req, res) => {
-    const p = req.sess && req.sess.data.pendingAdmin; if (!p) throw bad('Connect the parent account first', 403);
-    const id = auth.claimFirstAdmin(db(), { username: p.username, email: (req.body || {}).email, password: (req.body || {}).password, confirm: (req.body || {}).confirm, parentAccountId: p.accountId });
-    audit({ user: { id } }, 'first_admin_created', `via parent oauth account ${p.accountId}`);
-    const c = startSession(req, res, id); res.json({ ok: true, csrf: c.csrf });
-  }));
-  // Fallback while the parent OAuth flow is unverified. Clearly logged; still requires the setup code and works only once.
-  app.post('/api/setup/claim', loginLimit, wrap((req, res) => {
-    const b = req.body || {};
-    if (!setupCode.check(db(), b.setupToken)) throw bad('Wrong setup code. Find it in your Render logs.', 403);
-    if (!settings.get(db(), 'app_url')) settings.set(db(), 'app_url', appUrl(req));
-    const id = auth.claimFirstAdmin(db(), { username: b.username, email: b.email, password: b.password, confirm: b.confirm, parentAccountId: null });
-    audit({ user: { id } }, 'first_admin_created', 'manual claim (parent OAuth not used)');
-    const c = startSession(req, res, id); res.json({ ok: true, csrf: c.csrf });
+    if (!req.sess) throw bad('No session', 403);
+    const id = setupFlow.createAdmin(db(), req.sess.data, req.body || {}); auth.saveSession(db(), req.sess);
+    const c = startSession(req, res, id); res.json({ ok: true, csrf: c.csrf, redirect: '/admin' });
   }));
   app.get('/oauth/callback', wrap(async (req, res) => {
-    const redirect = `${appUrl(req)}/oauth/callback`;
-    if (!req.sess) return res.redirect('/#/login');
+    if (!req.sess) return res.redirect('/login');
+    const adminFlow = !!(req.user && req.user.role === 'super_admin');
     try {
-      const adminFlow = req.user && req.user.role === 'super_admin';
-      if (!adminFlow && !req.sess.data.setupOk) throw new Error('Not allowed');
-      const conn = await oauth.handleCallback(db(), req.sess.data, req.query, redirect);
-      if (!adminFlow) { req.sess.data.pendingAdmin = { accountId: conn.account_id, username: conn.account_username || 'admin' }; delete req.sess.data.setupOk; }
-      auth.saveSession(db(), req.sess);
-      res.redirect(adminFlow ? '/#/admin/parent' : '/#/setup');
-    } catch (e) { auth.saveSession(db(), req.sess); res.redirect(`/#/${req.user ? 'admin/parent' : 'login'}?error=${encodeURIComponent(e.message)}`); }
+      await setupFlow.callback(db(), req.sess.data, req.query, `${appUrl(req)}/oauth/callback`, { adminFlow });
+      auth.saveSession(db(), req.sess); res.redirect(adminFlow ? '/admin#/parent' : '/setup');
+    } catch (e) { auth.saveSession(db(), req.sess); res.redirect(adminFlow ? `/admin#/parent?error=${encodeURIComponent(e.message)}` : `/setup?error=${encodeURIComponent(e.message)}`); }
   }));
+
+  // ---- pages (HTML is rendered server-side with the panel name/logo; scripts and styles are external for the strict CSP) ----
+  const brand = () => ({ name: settings.get(db(), 'panel_name') || 'MrKrishna Child Panel', logoUrl: settings.get(db(), 'logo_url'), faviconUrl: settings.get(db(), 'favicon_url') });
+  const send = (res, name) => res.type('html').set('Cache-Control', 'no-store').send(views.render(name, brand()));
+  const ready = (res) => (auth.adminExists(db()) ? true : (res.redirect('/setup'), false));
+  const home = (u) => (u.role === 'super_admin' ? '/admin' : '/app');
+  app.get('/', (req, res) => { if (ready(res)) send(res, 'landing'); });
+  app.get(['/login', '/register'], (req, res) => { if (!ready(res)) return; if (req.user) return res.redirect(home(req.user)); send(res, req.path === '/login' ? 'login' : 'register'); });
+  app.get('/services/:platform', (req, res) => { if (!ready(res)) return; if (!['instagram', 'telegram', 'facebook', 'whatsapp'].includes(req.params.platform)) return res.redirect('/'); send(res, 'services'); });
+  app.get('/app', (req, res) => { if (!ready(res)) return; if (!req.user) return res.redirect('/login'); if (req.user.role === 'super_admin') return res.redirect('/admin'); send(res, 'app'); });
+  app.get('/admin', (req, res) => { if (!ready(res)) return; if (!req.user || req.user.role !== 'super_admin') return res.redirect('/login'); send(res, 'admin'); });
+  app.get('/setup', (req, res) => { if (auth.adminExists(db())) return res.redirect('/login'); send(res, 'setup'); });
+  app.get('/theme.css', (req, res) => res.type('text/css').set('Cache-Control', 'no-cache').send(views.themeCss(settings.get(db(), 'accent'))));
+  app.get('/favicon.svg', (req, res) => res.type('image/svg+xml').set('Cache-Control', 'public, max-age=300').send(views.faviconSvg(brand().name)));
+
+  // ---- public read-only APIs (retail prices only: no wholesale rates, no parent IDs) ----
+  const PLATFORMS = ['instagram', 'telegram', 'facebook', 'whatsapp'];
+  app.get('/api/public/config', (req, res) => {
+    const sup = support.getSupport(db()); const counts = {};
+    for (const x of catalogSvc.publicServices(db())) counts[x.platform] = (counts[x.platform] || 0) + 1;
+    res.json({ panelName: brand().name, supportUrl: sup.enabled && sup.url ? sup.url : null, loggedIn: !!req.user, user: req.user ? { username: req.user.username, role: req.user.role } : null, counts });
+  });
+  app.get('/api/public/services', (req, res) => {
+    const p = String(req.query.platform || ''); if (p && !PLATFORMS.includes(p)) throw bad('Unknown platform');
+    const list = catalogSvc.publicServices(db()).filter((x) => !p || x.platform === p);
+    res.json({ services: list, categories: [...new Set(list.map((x) => x.category).filter(Boolean))] });
+  });
 
   // ---- customer ----
   app.get('/api/me', needUser, (req, res) => res.json({ user: req.user, balance: fromPaise(wallet.balance(db(), req.user.id)) }));
@@ -135,7 +150,8 @@ function createApp(holder, { fetcher = gmail.fetchRecent } = {}) {
       totalOrders: c('SELECT count(*) c FROM orders WHERE user_id=?'), completed: c("SELECT count(*) c FROM orders WHERE user_id=? AND status='completed'"),
       pending: c("SELECT count(*) c FROM orders WHERE user_id=? AND status IN('pending','in_progress','awaiting_admin')"),
       totalDeposits: fromPaise(db().prepare("SELECT COALESCE(sum(requested_paise),0) s FROM deposits WHERE user_id=? AND status='paid'").get(id).s),
-      recentOrders: ordersFor(id, 5), recentTransactions: txFor(id, 5) });
+      recentOrders: ordersFor(id, 5), recentTransactions: txFor(id, 5),
+      recentDeposits: db().prepare('SELECT transaction_id,requested_paise,status,created_at FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT 5').all(id).map((d) => ({ transactionId: d.transaction_id, requested: fromPaise(d.requested_paise), status: d.status, createdAt: d.created_at })) });
   });
   const ordersFor = (uid, limit = 100) => db().prepare('SELECT o.reference,o.link,o.quantity,o.retail_paise,o.status,o.created_at,s.name service FROM orders o JOIN services s ON s.id=o.service_id WHERE o.user_id=? ORDER BY o.id DESC LIMIT ?').all(uid, limit)
     .map((o) => ({ reference: o.reference, service: o.service, link: o.link, quantity: o.quantity, charge: fromPaise(o.retail_paise), status: o.status, createdAt: o.created_at }));
@@ -282,7 +298,7 @@ function createApp(holder, { fetcher = gmail.fetchRecent } = {}) {
   A.get('/backup', (req, res) => { audit(req, 'backup_download'); res.set({ 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="child-panel-${fmt().replace(/[ :]/g, '-')}.sqlite"` }); res.send(backup.backupBuffer(db())); });
   A.post('/restore', wrap((req, res) => { if (!Buffer.isBuffer(req.body)) throw bad('Upload a .sqlite backup file'); const r = backup.restoreFromBuffer(holder, req.body); res.clearCookie('sid'); res.json({ ok: true, ...r, relogin: true }); }));
 
-  app.use(express.static(path.join(__dirname, '..', 'public'), { index: 'index.html', maxAge: 0 }));
+  app.use(express.static(path.join(__dirname, '..', 'public'), { index: false, maxAge: 0 }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {

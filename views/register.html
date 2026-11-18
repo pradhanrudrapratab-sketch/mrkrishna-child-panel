@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1015">
+<link rel="icon" href="{{FAVICON}}">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/theme.css">
+<title>Create account · {{NAME}}</title>
+</head>
+<body class="auth">
+<main>
+  <div class="auth-wrap">
+    <div class="auth-brand">{{MARK}}<span>{{NAME}}</span></div>
+    <div class="card">
+      <h1>Create your account</h1>
+      <p class="sub">Join {{NAME}} and start ordering in a minute.</p>
+      <div id="error" class="notice err" role="alert" hidden></div>
+      <form id="form" novalidate>
+        <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required><div class="hint">3 to 24 letters, numbers or underscores.</div></div>
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="new-password" required><div class="hint">At least 8 characters.</div></div>
+        <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required></div>
+        <button class="btn primary block" type="submit">Create account</button>
+      </form>
+      <p class="hint foot">Already have an account? <a href="/login">Log in</a></p>
+    </div>
+  </div>
+</main>
+<footer class="site-footer"><p>© {{YEAR}} {{NAME}}</p></footer>
+<script src="/js/common.js"></script>
+<script src="/js/auth.js"></script>
+</body>
+</html>

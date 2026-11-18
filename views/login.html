@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1015">
+<link rel="icon" href="{{FAVICON}}">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/theme.css">
+<title>Log in · {{NAME}}</title>
+</head>
+<body class="auth">
+<main>
+  <div class="auth-wrap">
+    <div class="auth-brand">{{MARK}}<span>{{NAME}}</span></div>
+    <div class="card">
+      <h1>Welcome back</h1>
+      <p class="sub">Log in to your {{NAME}} account.</p>
+      <div id="error" class="notice err" role="alert" hidden></div>
+      <form id="form" novalidate>
+        <div class="field"><label for="identifier">Username or email</label><input id="identifier" name="identifier" autocomplete="username" required></div>
+        <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn primary block" type="submit">Log in</button>
+      </form>
+      <p class="hint foot">New here? <a href="/register">Create an account</a></p>
+    </div>
+  </div>
+</main>
+<footer class="site-footer"><p>© {{YEAR}} {{NAME}}</p></footer>
+<script src="/js/common.js"></script>
+<script src="/js/auth.js"></script>
+</body>
+</html>

@@ -5,7 +5,6 @@ const { DbHolder } = require('./database');
 const { createApp } = require('./app');
 const { startJobs } = require('./jobs');
 const { scrubSecrets } = require('./services/secrets');
-const setup = require('./services/setup');
 
 // Everything is hardcoded to sensible defaults. Secrets are generated on first start; settings live in the admin panel.
 const DB_FILE = process.env.DATABASE_PATH || '/tmp/mrkrishna-child-panel/database.sqlite'; // optional override, never required
@@ -16,7 +15,6 @@ const holder = new DbHolder(DB_FILE);
 const cleared = scrubSecrets(holder.db);
 if (keyInfo.created) console.log('Generated a new encryption key for this instance.');
 if (cleared.length) console.log(`Re-enter in the admin panel (stored value could not be decrypted): ${cleared.join(', ')}`);
-setup.current(holder.db); // prints the one-time setup code while no admin exists
 
 const server = createApp(holder).listen(PORT, () => console.log(`Child panel listening on ${PORT} (db: ${DB_FILE})`));
 const stop = startJobs(holder);

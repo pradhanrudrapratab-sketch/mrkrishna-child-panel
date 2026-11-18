@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1015">
+<link rel="icon" href="{{FAVICON}}">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/theme.css">
+<title>Dashboard · {{NAME}}</title>
+</head>
+<body>
+<div class="topbar">
+  <button class="btn small icon-btn" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  <span class="brand-sm">{{MARK}}<span class="brand-name">{{NAME}}</span></span>
+  <span class="bal" id="top-bal"></span>
+</div>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">{{MARK}}<span class="brand-t">{{NAME}}<small>Customer panel</small></span></div>
+    <nav class="nav" id="nav">
+      <a href="#/dashboard"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><span>Dashboard</span></a>
+      <a href="#/new"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>New order</span></a>
+      <a href="#/funds"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7V6a2 2 0 0 1 2-2h12M16 14h2"/></svg><span>Add funds</span></a>
+      <a href="#/orders"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Order history</span></a>
+      <a href="#/deposits"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Deposit history</span></a>
+      <a href="#/transactions"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"/></svg><span>Transactions</span></a>
+      <a href="#/support"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.2A8 8 0 1 1 21 12z"/></svg><span>Support</span></a>
+      <a href="#/profile"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profile</span></a>
+    </nav>
+    <div class="side-foot">
+      <div id="who" class="who"></div>
+      <button class="btn small block" id="logout" type="button">Log out</button>
+    </div>
+  </aside>
+  <div class="content">
+    <main class="main" id="view" tabindex="-1"><p class="muted">Loading…</p></main>
+    <footer class="site-footer"><p>© {{YEAR}} {{NAME}}</p></footer>
+  </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/js/common.js"></script>
+<script src="/js/platforms.js"></script>
+<script src="/js/service-modal.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

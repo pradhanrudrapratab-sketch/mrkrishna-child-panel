@@ -15,17 +15,28 @@ Still NOT verified, so read this before going live:
 4. **Not built:** customer API keys (optional in the spec), exact visual matching of the parent theme (its CSS could not be inspected; the UI uses a dark `#0c1015` base with a configurable accent), and HTTP-level tests of CSRF and route authorization.
 5. `/tmp` is ephemeral. Download backups regularly.
 
-## Deploy on Render (no environment variables)
+## First-time setup (no setup code, no logs)
+1. Open your deployed site. While no admin exists, every page redirects to the welcome page.
+2. Click **Connect parent account**. You are sent to the MrKrishna parent panel's consent screen (OAuth authorization code + PKCE S256 + random state, all verifier/state kept in your server-side session).
+3. Confirm on the parent site (the code is valid for 2 minutes). You return to your panel automatically; the token exchange happens only on the server and is stored AES-256-GCM encrypted.
+4. Choose your admin email and password. The admin username comes from the authorized parent account. Setup is then permanently closed: the start, callback and create-admin steps all refuse once an admin exists, and the admin insert is a single atomic transaction.
+5. In Admin, Settings, fill in Payments (FamPay UPI ID, Gmail address, Gmail app password, FamPay sender address), then Services, Sync now.
+
+Security note: the first parent account to finish setup becomes the owner. Complete it right after the service goes live. To lock it to your parent account, add the optional variable `OWNER_PARENT_USERNAME` (your MrKrishna username); any other parent account is then rejected and its token is discarded.
+
+## Deploy on Render
 1. Push this repo to GitHub.
-2. Render, New, Web Service, pick the repo. Runtime Node, Build `npm install`, Start `npm start`, Plan Free. (Or use the included `render.yaml` as a Blueprint.) Leave Environment empty.
-3. When it is live, open the Logs tab and copy the line `SETUP CODE: ...`.
-4. Open your site, click **First-time admin setup**, enter the code, and connect your parent account (or use manual setup). You confirm on the parent's consent screen within 2 minutes.
-5. Admin, Settings: Payments (FamPay UPI ID, Gmail address, Gmail app password, FamPay sender address), then Discord and Support if wanted. Gmail app password: Google Account, Security, 2-Step Verification on, App passwords, create one for Mail. IMAP must be enabled in Gmail.
-6. Admin, Parent connection: Connect, then Sync services in Admin, Services.
+2. Render, New, Web Service, pick the repo. Runtime Node, Build `npm install`, Start `npm start`, Plan Free (or use `render.yaml`). Health check path `/health`.
+3. No environment variables are required. Open the URL Render gives you and follow First-time setup.
 
-Nothing secret is in the repo. On first start the app generates its own encryption key (stored next to the database in `/tmp`) and a one-time setup code (printed in the logs while no admin exists). The panel's public address is detected from the request and can be changed in Settings, General. The only optional overrides are `DATABASE_PATH` and the `PARENT_*` variables in docs/parent-integration.md; you do not need them.
+Environment variables (all optional): `OWNER_PARENT_USERNAME` (lock first-admin setup to one parent username), `DATABASE_PATH` (default `/tmp/mrkrishna-child-panel/database.sqlite`), `PARENT_OAUTH_REGISTER_PATH` / `PARENT_OAUTH_AUTHORIZE_PATH` / `PARENT_OAUTH_TOKEN_PATH` / `PARENT_OAUTH_CLIENT_ID` / `PARENT_ENDPOINTS_JSON` (only if the parent API changes). `PORT` is set by Render. The public HTTPS address, redirect URI and OAuth client are detected and stored automatically (Settings, General shows and can change the address).
 
-Free-tier reality: `/tmp` is wiped on restart, redeploy and spin-down, and the key goes with it. After a wipe: log in again is impossible (accounts are gone) until you restore a backup; after restoring, the Gmail app password, Discord token and parent connection are cleared (their key changed) and must be entered again. Download backups often. Jobs cannot run while the service sleeps; on wake, overdue work runs after about 5 seconds, and a deposit email that arrives during sleep is still matched if it is inside the deposit's expiry window plus 5 minutes.
+Nothing secret is in the repo. The encryption key is generated on first start and stored next to the database in `/tmp`.
+
+Free-tier reality: `/tmp` is wiped on restart, redeploy and spin-down, and the key goes with it. After a wipe there are no admin or customer accounts until you restore a backup; if there is no backup the panel returns to the welcome page and you repeat setup. After restoring on a fresh instance, the Gmail app password, Discord token and parent connection are cleared (the key changed) and must be entered or connected again. Each fresh setup registers a new OAuth client at the parent (the old ones stay as unused records there). Download backups often. Jobs cannot run while the service sleeps; on wake, overdue work runs after about 5 seconds, and a deposit email that arrives during sleep is still matched if it is inside the deposit's expiry window plus 5 minutes.
+
+## Pages
+Public: landing (`/`), platform service lists (`/services/instagram|telegram|facebook|whatsapp`, retail prices only), login, register. Customer app (`/app`): dashboard, new order, add funds with persistent QR, order history, deposit history, transactions, support, profile. Admin (`/admin`): overview, customers and wallet adjustments, services and markups, orders, deposits, transactions, parent connection, parent refills, settings, activity logs, backup/restore, profile. Password reset by email is not offered because the panel has no outgoing email; an admin can suspend/restore accounts, and customers can change their password while logged in.
 
 ## Rules implemented
 - Money is integer paise. Retail rate = wholesale x (1 + markup) rounded up. Default markup 30%.
